@@ -1,7 +1,6 @@
 package webapp
 
 import (
-	"fmt"
 	"net/http"
 	"path"
 
@@ -46,9 +45,7 @@ func (group *RouterGroup) Handle(httpMethod, relativePath string, handlers []Han
 	handlers = group.combineHandlers(handlers)
 
 	//debug
-	nuHandlers := len(handlers)
-	handlerName := nameOfFunction(handlers[nuHandlers-1])
-	fmt.Printf("[DEBUG] %-7s %-35s --> %s (%d handlers)\n", httpMethod, absolutePath, handlerName, nuHandlers)
+	debugRoute(httpMethod, absolutePath, handlers)
 
 	group.engine.router.Handle(httpMethod, absolutePath, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		context := group.engine.createContext(rw, req, params, handlers)

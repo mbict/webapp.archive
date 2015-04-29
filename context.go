@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/mbict/render"
 	"github.com/mbict/binding"
+	"github.com/mbict/render"
 )
 
 type Context struct {
@@ -18,6 +18,7 @@ type Context struct {
 	values   map[interface{}]interface{}
 	handlers []HandlerFunc
 	index    int8
+	engine   *Engine
 }
 
 /************************************/
@@ -32,6 +33,7 @@ func (engine *Engine) createContext(rw http.ResponseWriter, req *http.Request, p
 		handlers: handlers,
 		Errors:   nil,
 		index:    -1,
+		engine:   engine,
 	}
 }
 
@@ -109,10 +111,9 @@ func (ctx *Context) BindWith(obj interface{}, b binding.Binding) binding.Errors 
 /************************************/
 
 func (ctx *Context) Render(code int, render render.Render, obj ...interface{}) {
-	/*if err := render.Render(ctx.Writer, code, obj...); err != nil {
-		ctx.ErrorTyped(err, ErrorTypeInternal, obj)
-		ctx.AbortWithStatus(500)
-	}*/
+	if err := render.Render(ctx.Response, code, obj...); err != nil {
+		panic(err)
+	}
 }
 
 // Serializes the given struct as JSON into the response body in a fast and efficient way.
@@ -130,8 +131,8 @@ func (ctx *Context) XML(code int, obj interface{}) {
 // Renders the HTTP template specified by its file name.
 // It also updates the HTTP code and sets the Content-Type as "text/html".
 // See http://golang.org/doc/articles/wiki/
-func (ctx *Context) HTML(code int, name string, obj interface{}) {
-	//ctx.Render(code, ctx.Engine.HTMLRender, name, obj)
+func (ctx *Context) HTML(code int, name string, obj ...interface{}) {
+	ctx.Render(code, ctx.engine.templateRender, name, obj)
 }
 
 // Writes the given string into the response body and sets the Content-Type to "text/plain".
@@ -141,7 +142,7 @@ func (ctx *Context) String(code int, format string, values ...interface{}) {
 
 // Writes the given string into the response body and sets the Content-Type to "text/html" without template.
 func (ctx *Context) HTMLString(code int, format string, values ...interface{}) {
-	ctx.Render(code, render.HTMLPlain, format, values)
+	ctx.Render(code, render.HtmlPlain, format, values)
 }
 
 // Returns a HTTP redirect to the specific location.
