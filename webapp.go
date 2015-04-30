@@ -45,7 +45,7 @@ func (engine *Engine) Use(middlewares ...HandlerFunc) {
 	engine.allMethodNotAllowedHandlers = engine.combineHandlers(engine.methodNotAllowedHandlers)
 }
 
-func (engine *Engine) NoMethodAllowed(handlers ...HandlerFunc) {
+func (engine *Engine) MethodNotAllowed(handlers ...HandlerFunc) {
 	engine.methodNotAllowedHandlers = handlers
 
 	if len(handlers) > 0 {
