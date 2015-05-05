@@ -1,6 +1,7 @@
 package webapp
 
 import (
+	"net/http"
 	"reflect"
 	"runtime"
 )
@@ -15,4 +16,10 @@ func lastChar(str string) uint8 {
 
 func nameOfFunction(f interface{}) string {
 	return runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
+}
+
+func HttpHandlerFunc(h http.HandlerFunc) HandlerFunc {
+	return func(ctx *Context) {
+		h(ctx.Response, ctx.Request)
+	}
 }

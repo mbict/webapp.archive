@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
 	"sort"
 
 	"github.com/mbict/webapp"
@@ -43,8 +44,8 @@ func BasicAuthForRealm(accounts Accounts, realm string) webapp.HandlerFunc {
 			if realm == "" {
 				realm = "Authorization Required"
 			}
+			ctx.Response.WriteHeader(http.StatusUnauthorized)
 			ctx.Response.Header().Set("WWW-Authenticate", fmt.Sprintf("Basic realm=\"%s\"", realm))
-//			ctx.Fail(401, errors.New("Unauthorized"))
 		} else {
 			// user is allowed, set UserId to key "user" in this context, the userId can be read later using
 			// c.Get(gin.AuthUserKey)

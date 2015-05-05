@@ -121,6 +121,21 @@ func (group *RouterGroup) createStaticHandler(absolutePath, root string) func(*C
 	}
 }
 
+func (group *RouterGroup) StaticFile(relativePath, file string) {
+	absolutePath := group.calculateAbsolutePath(relativePath)
+	handler := group.createStaticFileHandler(absolutePath, file)
+
+	// Register GET and HEAD handlers
+	group.GET(absolutePath, handler)
+	group.HEAD(absolutePath, handler)
+}
+
+func (group *RouterGroup) createStaticFileHandler(absolutePath, file string) func(*Context) {
+	return func(ctx *Context) {
+		http.ServeFile(ctx.Response, ctx.Request, file)
+	}
+}
+
 func (group *RouterGroup) combineHandlers(handlers []HandlerFunc) []HandlerFunc {
 	finalSize := len(group.Handlers) + len(handlers)
 	mergedHandlers := make([]HandlerFunc, 0, finalSize)
