@@ -132,17 +132,17 @@ func (ctx *Context) XML(code int, obj interface{}) {
 // It also updates the HTTP code and sets the Content-Type as "text/html".
 // See http://golang.org/doc/articles/wiki/
 func (ctx *Context) HTML(code int, name string, obj ...interface{}) {
-	ctx.Render(code, ctx.engine.templateRender, name, obj)
+	ctx.Render(code, ctx.engine.templateRender, append([]interface{}{name}, obj...)...)
 }
 
 // Writes the given string into the response body and sets the Content-Type to "text/plain".
 func (ctx *Context) String(code int, format string, values ...interface{}) {
-	ctx.Render(code, render.Plain, format, values)
+	ctx.Render(code, render.Plain, append([]interface{}{format}, values...)...)
 }
 
 // Writes the given string into the response body and sets the Content-Type to "text/html" without template.
 func (ctx *Context) HTMLString(code int, format string, values ...interface{}) {
-	ctx.Render(code, render.HtmlPlain, format, values)
+	ctx.Render(code, render.HtmlPlain, append([]interface{}{format}, values...)...)
 }
 
 // Returns a HTTP redirect to the specific location.
