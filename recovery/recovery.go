@@ -87,6 +87,9 @@ func New(panicHandler webapp.HandlerFunc) webapp.HandlerFunc {
 	return func(ctx *webapp.Context) {
 		defer func() {
 			if err := recover(); err != nil {
+				//abort context
+				ctx.Abort()
+
 				stackTrace := stack(3)
 				formattedError := fmt.Errorf("%s\nStack trace:\n%s", err, stackTrace)
 				ctx.Errors.Add(formattedError)
@@ -94,14 +97,12 @@ func New(panicHandler webapp.HandlerFunc) webapp.HandlerFunc {
 				if panicHandler != nil {
 					panicHandler(ctx)
 				}
-
 				if !ctx.Response.Written() {
 					ctx.Response.WriteHeader(500)
 					fmt.Fprintf(ctx.Response, "Internal server error")
 				}
 			}
 		}()
-
 		ctx.Next()
 	}
 }
