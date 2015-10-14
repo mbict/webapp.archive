@@ -34,9 +34,13 @@ func init() {
 
 func SetEnv(value string) {
 	switch value {
+	case "DEV":
+		env = debugCode
 	case Debug:
 		env = debugCode
 	case Release:
+		env = releaseCode
+	case "LIVE":
 		env = releaseCode
 	case Test:
 		env = testCode

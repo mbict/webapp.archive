@@ -57,6 +57,11 @@ func (ctx *Context) Abort() {
 	ctx.index = AbortIndex
 }
 
+// Is aborted indicates if the aborted function is called for this context
+func (ctx *Context) IsAborted() bool {
+	return ctx.index == AbortIndex
+}
+
 /************************************/
 /******** METADATA MANAGEMENT********/
 /************************************/
