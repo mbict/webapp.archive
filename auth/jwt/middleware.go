@@ -26,6 +26,9 @@ type Options struct {
 	// The name of context key where the jwt token is stored
 	// Default value: "jwt"
 	ContextName string
+	// If set the mapper function will be called after a successvol token parse
+	// Default value: null
+	ContextMapper webapp.HandlerFunc
 	// The function that will be called when there's an error validating the token
 	// Default value:
 	ErrorHandler errorHandler
@@ -60,10 +63,6 @@ func NewMiddleware(backend *Backend, options ...Options) webapp.HandlerFunc {
 		opts = options[0]
 	}
 
-	/*if opts.UserProperty == "" {
-		opts.UserProperty = "user"
-	}*/
-
 	if opts.ContextName == "" {
 		opts.ContextName = "jwt"
 	}
@@ -90,6 +89,10 @@ func NewMiddleware(backend *Backend, options ...Options) webapp.HandlerFunc {
 			m.Options.ErrorHandler(ctx)
 			ctx.Abort()
 			return
+		} else {
+			if m.Options.ContextMapper != nil {
+				m.Options.ContextMapper(ctx)
+			}
 		}
 
 		ctx.Next()
