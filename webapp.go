@@ -51,14 +51,16 @@ func (engine *Engine) MethodNotAllowed(handlers ...HandlerFunc) {
 	if len(handlers) > 0 {
 		engine.router.HandleMethodNotAllowed = true
 		engine.allMethodNotAllowedHandlers = engine.combineHandlers(handlers)
-		engine.router.MethodNotAllowed = func(rw http.ResponseWriter, req *http.Request) {
-			ctx := engine.createContext(rw, req, nil, engine.allMethodNotAllowedHandlers)
-			ctx.Next()
-			if !ctx.Response.Written() {
-				ctx.Response.WriteHeader(404)
-				ctx.Response.Write([]byte("405 Method not allowed"))
-			}
-		}
+
+		engine.router.MethodNotAllowed = http.HandlerFunc(
+			func(rw http.ResponseWriter, req *http.Request) {
+				ctx := engine.createContext(rw, req, nil, engine.allMethodNotAllowedHandlers)
+				ctx.Next()
+				if !ctx.Response.Written() {
+					ctx.Response.WriteHeader(404)
+					ctx.Response.Write([]byte("405 Method not allowed"))
+				}
+			})
 	} else {
 		engine.router.HandleMethodNotAllowed = false
 		engine.allMethodNotAllowedHandlers = nil
@@ -69,14 +71,15 @@ func (engine *Engine) NotFound(handlers ...HandlerFunc) {
 	engine.notFoundHandlers = handlers
 	engine.allNotFoundHandlers = engine.combineHandlers(handlers)
 
-	engine.router.NotFound = func(rw http.ResponseWriter, req *http.Request) {
-		ctx := engine.createContext(rw, req, nil, engine.allNotFoundHandlers)
-		ctx.Next()
-		if !ctx.Response.Written() {
-			ctx.Response.WriteHeader(404)
-			ctx.Response.Write([]byte("404 Page not found"))
-		}
-	}
+	engine.router.NotFound = http.HandlerFunc(
+		func(rw http.ResponseWriter, req *http.Request) {
+			ctx := engine.createContext(rw, req, nil, engine.allNotFoundHandlers)
+			ctx.Next()
+			if !ctx.Response.Written() {
+				ctx.Response.WriteHeader(404)
+				ctx.Response.Write([]byte("404 Page not found"))
+			}
+		})
 }
 
 func (engine *Engine) RedirectFixedPath(v bool) {
