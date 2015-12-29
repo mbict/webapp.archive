@@ -10,10 +10,10 @@ import (
 )
 
 type Context struct {
-	Request  *http.Request
-	Response ResponseWriter
-	Params   httprouter.Params
-	Errors   Errors
+	request  *http.Request
+	response ResponseWriter
+	params   httprouter.Params
+	errors   Errors
 
 	values   map[interface{}]interface{}
 	handlers []HandlerFunc
@@ -27,11 +27,11 @@ type Context struct {
 
 func (engine *Engine) createContext(rw http.ResponseWriter, req *http.Request, params httprouter.Params, handlers []HandlerFunc) *Context {
 	return &Context{
-		Response: newResponseWriter(rw),
-		Request:  req,
-		Params:   params,
+		response: newResponseWriter(rw),
+		request:  req,
+		params:   params,
 		handlers: handlers,
-		Errors:   nil,
+		errors:   nil,
 		index:    -1,
 		engine:   engine,
 	}
@@ -96,19 +96,55 @@ func (ctx *Context) GetOk(key interface{}) (interface{}, bool) {
 	return nil, false
 }
 
+// Request returns the http.Request
+func (ctx *Context) Request() *http.Request {
+	return ctx.request
+}
+
+// Method returns the request method like GET/POST etc
+func (ctx *Context) Method() string {
+	return ctx.request.Method
+}
+
+// Response returns the response writer it implements the http.ResponseWriter interface
+func (ctx *Context) Response() ResponseWriter {
+	return ctx.response
+}
+
+// Params returns the router params who are extracted from the route
+// Params returns the httprouter.Params interface type
+func (ctx *Context) Params() httprouter.Params {
+	return ctx.params
+}
+
+// Param returns the router param by name
+func (ctx *Context) Param(name string) string {
+	return ctx.params.ByName(name)
+}
+
+// Header returns the response headers. It implements the http.Headers interface.
+func (ctx *Context) Header() http.Header {
+	return ctx.response.Header()
+}
+
+// Header returns the response headers. It implements the http.Headers interface.
+func (ctx *Context) Errors() *Errors {
+	return &ctx.errors
+}
+
 func (ctx *Context) ClientIP() string {
-	return ctx.Request.RemoteAddr
+	return ctx.request.RemoteAddr
 }
 
 /************************************/
 /********* PARSING REQUEST **********/
 /************************************/
 func (ctx *Context) Bind(obj interface{}) binding.Errors {
-	return binding.Bind(obj, ctx.Request)
+	return binding.Bind(obj, ctx.request)
 }
 
 func (ctx *Context) BindWith(obj interface{}, b binding.Binding) binding.Errors {
-	return b.Bind(obj, ctx.Request)
+	return b.Bind(obj, ctx.request)
 }
 
 /************************************/
@@ -116,7 +152,7 @@ func (ctx *Context) BindWith(obj interface{}, b binding.Binding) binding.Errors 
 /************************************/
 
 func (ctx *Context) Render(code int, render render.Render, obj ...interface{}) {
-	if err := render.Render(ctx.Response, code, obj...); err != nil {
+	if err := render.Render(ctx.response, code, obj...); err != nil {
 		panic(err)
 	}
 }
@@ -162,13 +198,49 @@ func (ctx *Context) Redirect(code int, location string) {
 // Writes some data into the body stream and updates the HTTP code.
 func (ctx *Context) Data(code int, contentType string, data []byte) {
 	if len(contentType) > 0 {
-		ctx.Response.Header().Set("Content-Type", contentType)
+		ctx.response.Header().Set("Content-Type", contentType)
 	}
-	ctx.Response.WriteHeader(code)
-	ctx.Response.Write(data)
+	ctx.WriteHeader(code)
+	ctx.Write(data)
+}
+
+// Respond writes the given HTTP status code and response body.
+// This method should only be called once per request.
+func (ctx *Context) Respond(code int, body []byte) error {
+	ctx.WriteHeader(code)
+	if _, err := ctx.Write(body); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Writes the specified file into the body stream
 func (ctx *Context) File(filepath string) {
-	http.ServeFile(ctx.Response, ctx.Request, filepath)
+	http.ServeFile(ctx.response, ctx.request, filepath)
+}
+
+// ResponseWritten returns if the response have been written to the output
+func (ctx *Context) ResponseWritten() bool {
+	return ctx.response.Written()
+}
+
+// ResponseStatus shows the status who is beeing send out
+func (ctx *Context) ResponseStatus() int {
+	return ctx.response.Status()
+}
+
+// ResponseLength returns the response body length in bytes if the response was written
+func (ctx *Context) ResponseLength() int {
+	return ctx.response.Size()
+}
+
+// WriteHeader writes the HTTP status code to the response. It implements the
+// http.ResponseWriter interface.
+func (ctx *Context) WriteHeader(code int) {
+	ctx.response.WriteHeader(code)
+}
+
+// Write writes the HTTP response body. It implements the http.ResponseWriter interface.
+func (ctx *Context) Write(body []byte) (int, error) {
+	return ctx.response.Write(body)
 }

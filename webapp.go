@@ -30,7 +30,7 @@ type (
 func New() *Engine {
 	engine := &Engine{}
 	engine.RouterGroup = &RouterGroup{
-		Handlers:     nil,
+		handlers:     nil,
 		absolutePath: "/",
 		engine:       engine,
 	}
@@ -56,9 +56,8 @@ func (engine *Engine) MethodNotAllowed(handlers ...HandlerFunc) {
 			func(rw http.ResponseWriter, req *http.Request) {
 				ctx := engine.createContext(rw, req, nil, engine.allMethodNotAllowedHandlers)
 				ctx.Next()
-				if !ctx.Response.Written() {
-					ctx.Response.WriteHeader(404)
-					ctx.Response.Write([]byte("405 Method not allowed"))
+				if !ctx.ResponseWritten() {
+					ctx.Respond(http.StatusMethodNotAllowed, []byte("405 Method not allowed"))
 				}
 			})
 	} else {
@@ -75,9 +74,8 @@ func (engine *Engine) NotFound(handlers ...HandlerFunc) {
 		func(rw http.ResponseWriter, req *http.Request) {
 			ctx := engine.createContext(rw, req, nil, engine.allNotFoundHandlers)
 			ctx.Next()
-			if !ctx.Response.Written() {
-				ctx.Response.WriteHeader(404)
-				ctx.Response.Write([]byte("404 Page not found"))
+			if !ctx.ResponseWritten() {
+				ctx.Respond(http.StatusNotFound, []byte("404 Page not found"))
 			}
 		})
 }
@@ -92,6 +90,16 @@ func (engine *Engine) RedirectTrailingSlash(v bool) {
 
 func (engine *Engine) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	engine.router.ServeHTTP(writer, request)
+}
+
+// ListenAndServe starts a HTTP server and sets up a listener on the given host/port.
+func (engine *Engine) ListenAndServe(addr string) error {
+	return http.ListenAndServe(addr, engine.router)
+}
+
+// ListenAndServeTLS starts a HTTPS server and sets up a listener on the given host/port.
+func (engine *Engine) ListenAndServeTLS(addr, certFile, keyFile string) error {
+	return http.ListenAndServeTLS(addr, certFile, keyFile, engine.router)
 }
 
 //Templates

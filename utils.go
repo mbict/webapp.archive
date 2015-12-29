@@ -20,6 +20,6 @@ func nameOfFunction(f interface{}) string {
 
 func HttpHandlerFunc(h http.HandlerFunc) HandlerFunc {
 	return func(ctx *Context) {
-		h(ctx.Response, ctx.Request)
+		h(ctx.Response(), ctx.Request())
 	}
 }

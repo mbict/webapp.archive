@@ -10,21 +10,21 @@ import (
 // Used internally to configure router, a RouterGroup is associated with a prefix
 // and an array of handlers (middlewares)
 type RouterGroup struct {
-	Handlers     []HandlerFunc
+	handlers     []HandlerFunc
 	absolutePath string
 	engine       *Engine
 }
 
 // Adds middlewares to the group, see example code in github.
 func (group *RouterGroup) Use(middlewares ...HandlerFunc) {
-	group.Handlers = append(group.Handlers, middlewares...)
+	group.handlers = append(group.handlers, middlewares...)
 }
 
 // Creates a new router group. You should add all the routes that have common middlwares or the same path prefix.
 // For example, all the routes that use a common middlware for authorization could be grouped.
 func (group *RouterGroup) Group(relativePath string, handlers ...HandlerFunc) *RouterGroup {
 	return &RouterGroup{
-		Handlers:     group.combineHandlers(handlers),
+		handlers:     group.combineHandlers(handlers),
 		absolutePath: group.calculateAbsolutePath(relativePath),
 		engine:       group.engine,
 	}
@@ -117,7 +117,7 @@ func (group *RouterGroup) Static(relativePath, root string) {
 func (group *RouterGroup) createStaticHandler(absolutePath, root string) func(*Context) {
 	fileServer := http.StripPrefix(absolutePath, http.FileServer(http.Dir(root)))
 	return func(ctx *Context) {
-		fileServer.ServeHTTP(ctx.Response, ctx.Request)
+		fileServer.ServeHTTP(ctx.Response(), ctx.Request())
 	}
 }
 
@@ -132,14 +132,14 @@ func (group *RouterGroup) StaticFile(relativePath, file string) {
 
 func (group *RouterGroup) createStaticFileHandler(absolutePath, file string) func(*Context) {
 	return func(ctx *Context) {
-		http.ServeFile(ctx.Response, ctx.Request, file)
+		http.ServeFile(ctx.Response(), ctx.Request(), file)
 	}
 }
 
 func (group *RouterGroup) combineHandlers(handlers []HandlerFunc) []HandlerFunc {
-	finalSize := len(group.Handlers) + len(handlers)
+	finalSize := len(group.handlers) + len(handlers)
 	mergedHandlers := make([]HandlerFunc, 0, finalSize)
-	mergedHandlers = append(mergedHandlers, group.Handlers...)
+	mergedHandlers = append(mergedHandlers, group.handlers...)
 	return append(mergedHandlers, handlers...)
 }
 
