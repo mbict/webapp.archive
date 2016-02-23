@@ -1,118 +1,119 @@
 package webapp
 
 import (
-	"math"
-	"net/http"
-
 	"github.com/julienschmidt/httprouter"
-	"github.com/mbict/render"
+	"golang.org/x/net/context"
+	"net/http"
 )
 
-const (
-	AbortIndex = math.MaxInt8 / 2
-)
+type App interface {
+	RouteGroup
 
-type (
-	HandlerFunc func(*Context)
+	MethodNotAllowed(handler ContextHandler)
+	NotFound(handler ContextHandler)
 
-	Engine struct {
-		*RouterGroup
-		templateRender              render.Render
-		middleware                  []HandlerFunc
-		router                      *httprouter.Router
-		allNotFoundHandlers         []HandlerFunc
-		allMethodNotAllowedHandlers []HandlerFunc
-		notFoundHandlers            []HandlerFunc
-		methodNotAllowedHandlers    []HandlerFunc
+	RedirectFixedPath(v bool)
+	RedirectTrailingSlash(v bool)
+	HandleOptions(v bool)
+
+	ListenAndServe(addr string) error
+	ListenAndServeTLS(addr, certFile, keyFile string) error
+}
+
+type webapp struct {
+	*routeGroup
+	router *httprouter.Router
+
+	notFoundHandler   ContextHandler
+	notAllowedHandler ContextHandler
+}
+
+func New() App {
+	router := httprouter.New()
+	group := &routeGroup{
+		path:   "/",
+		router: router,
 	}
-)
+	router.PanicHandler = nil
 
-func New() *Engine {
-	engine := &Engine{}
-	engine.RouterGroup = &RouterGroup{
-		handlers:     nil,
-		absolutePath: "/",
-		engine:       engine,
+	app := &webapp{
+		routeGroup: group,
+		router:     router,
 	}
-	engine.router = httprouter.New()
 
-	return engine
+	app.HandleOptions(true)
+	app.NotFound(nil)
+	app.MethodNotAllowed(ContextHandlerFunc(defaultMethodNotAllowedHandler))
+
+	return app
 }
 
-func (engine *Engine) Use(middlewares ...HandlerFunc) {
-	engine.RouterGroup.Use(middlewares...)
-	engine.allNotFoundHandlers = engine.combineHandlers(engine.notFoundHandlers)
-	engine.allMethodNotAllowedHandlers = engine.combineHandlers(engine.methodNotAllowedHandlers)
+//@todo add use function
+func (app *webapp) Use(middleware ...Middleware) {
+	app.routeGroup.Use(middleware...)
+
+	//update handlers
+	app.NotFound(app.notFoundHandler)
+	app.MethodNotAllowed(app.notAllowedHandler)
 }
 
-func (engine *Engine) MethodNotAllowed(handlers ...HandlerFunc) {
-	engine.methodNotAllowedHandlers = handlers
-
-	if len(handlers) > 0 {
-		engine.router.HandleMethodNotAllowed = true
-		engine.allMethodNotAllowedHandlers = engine.combineHandlers(handlers)
-
-		engine.router.MethodNotAllowed = http.HandlerFunc(
-			func(rw http.ResponseWriter, req *http.Request) {
-				ctx := engine.createContext(rw, req, nil, engine.allMethodNotAllowedHandlers)
-				ctx.Next()
-				if !ctx.ResponseWritten() {
-					ctx.Respond(http.StatusMethodNotAllowed, []byte("405 Method not allowed"))
-				}
-			})
-	} else {
-		engine.router.HandleMethodNotAllowed = false
-		engine.allMethodNotAllowedHandlers = nil
+func (app *webapp) MethodNotAllowed(handler ContextHandler) {
+	app.notAllowedHandler = handler
+	app.router.HandleMethodNotAllowed = handler != nil
+	if !app.router.HandleMethodNotAllowed {
+		return
 	}
+
+	methodNotAllowedHandler := app.routeGroup.middleware.Then(handler)
+	app.router.MethodNotAllowed = http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		methodNotAllowedHandler.ServeHTTPContext(context.Background(), newResponseWriter(rw), req)
+	})
 }
 
-func (engine *Engine) NotFound(handlers ...HandlerFunc) {
-	engine.notFoundHandlers = handlers
-	engine.allNotFoundHandlers = engine.combineHandlers(handlers)
+func (app *webapp) NotFound(handler ContextHandler) {
+	if handler == nil {
+		handler = ContextHandlerFunc(defaultNotFoundHandler)
+	}
+	app.notFoundHandler = handler
 
-	engine.router.NotFound = http.HandlerFunc(
-		func(rw http.ResponseWriter, req *http.Request) {
-			ctx := engine.createContext(rw, req, nil, engine.allNotFoundHandlers)
-			ctx.Next()
-			if !ctx.ResponseWritten() {
-				ctx.Respond(http.StatusNotFound, []byte("404 Page not found"))
-			}
-		})
+	notFoundHandler := app.routeGroup.middleware.Then(handler)
+	app.router.NotFound = http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		notFoundHandler.ServeHTTPContext(context.Background(), newResponseWriter(rw), req)
+	})
 }
 
-func (engine *Engine) RedirectFixedPath(v bool) {
-	engine.router.RedirectFixedPath = v
+func (app *webapp) RedirectFixedPath(v bool) {
+	app.router.RedirectFixedPath = v
 }
 
-func (engine *Engine) RedirectTrailingSlash(v bool) {
-	engine.router.RedirectTrailingSlash = v
+func (app *webapp) RedirectTrailingSlash(v bool) {
+	app.router.RedirectTrailingSlash = v
 }
 
-func (engine *Engine) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	engine.router.ServeHTTP(writer, request)
+func (app *webapp) HandleOptions(v bool) {
+	app.router.HandleOPTIONS = v
 }
 
 // ListenAndServe starts a HTTP server and sets up a listener on the given host/port.
-func (engine *Engine) ListenAndServe(addr string) error {
-	return http.ListenAndServe(addr, engine.router)
+func (app *webapp) ListenAndServe(addr string) error {
+	return http.ListenAndServe(addr, app.router)
 }
 
 // ListenAndServeTLS starts a HTTPS server and sets up a listener on the given host/port.
-func (engine *Engine) ListenAndServeTLS(addr, certFile, keyFile string) error {
-	return http.ListenAndServeTLS(addr, certFile, keyFile, engine.router)
+func (app *webapp) ListenAndServeTLS(addr, certFile, keyFile string) error {
+	return http.ListenAndServeTLS(addr, certFile, keyFile, app.router)
 }
 
-//Templates
-func (engine *Engine) LoadDefaultTemplate(directory, layout string) {
-	opt := render.TemplateOptions{
-		DebugMode: IsDebugging(),
-		Directory: directory,
-		Layout:    layout,
-	}
-
-	engine.SetTemplateRender(render.NewTemplateRenderer(opt))
+func defaultMethodNotAllowedHandler(_ context.Context, rw http.ResponseWriter, _ *http.Request) {
+	http.Error(rw,
+		http.StatusText(http.StatusMethodNotAllowed),
+		http.StatusMethodNotAllowed,
+	)
 }
 
-func (engine *Engine) SetTemplateRender(r render.Render) {
-	engine.templateRender = r
+func defaultNotFoundHandler(_ context.Context, rw http.ResponseWriter, _ *http.Request) {
+	http.Error(rw,
+		http.StatusText(http.StatusNotFound),
+		http.StatusNotFound,
+	)
 }

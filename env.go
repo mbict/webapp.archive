@@ -1,55 +1,59 @@
 package webapp
 
 import (
+	"fmt"
 	"os"
-
-	"github.com/mattn/go-colorable"
+	"strings"
 )
 
 const ENV = "ENV"
 
 const (
-	Debug   string = "debug"
-	Release string = "release"
-	Test    string = "test"
-)
-const (
-	debugCode   = iota
-	releaseCode = iota
-	testCode    = iota
+	Production  string = "production"
+	Development string = "development"
+	Testing     string = "testing"
 )
 
-var DefaultWriter = colorable.NewColorableStdout()
-var env int = debugCode
-var envName string = Debug
+var env string = Development
 
 func init() {
-	value := os.Getenv(ENV)
-	if len(value) == 0 {
-		SetEnv(Debug)
+	setDefaultEnv(os.Getenv(ENV))
+}
+
+func setDefaultEnv(env string) {
+	if len(env) == 0 {
+		SetEnv(Development)
 	} else {
-		SetEnv(value)
+		SetEnv(env)
 	}
 }
 
 func SetEnv(value string) {
-	switch value {
-	case "DEV":
-		env = debugCode
-	case Debug:
-		env = debugCode
-	case Release:
-		env = releaseCode
-	case "LIVE":
-		env = releaseCode
-	case Test:
-		env = testCode
+	switch strings.ToLower(value) {
+	case "dev":
+		fallthrough
+	case "debug":
+		fallthrough
+	case "development":
+		env = Development
+
+	case "release":
+		fallthrough
+	case "live":
+		fallthrough
+	case "production":
+		env = Production
+
+	case "test":
+		fallthrough
+	case "testing":
+		env = Testing
+
 	default:
-		panic("webapp unknown env: " + value)
+		panic(fmt.Sprintf("unknown environment: `%s`", value))
 	}
-	envName = value
 }
 
 func Env() string {
-	return envName
+	return env
 }
