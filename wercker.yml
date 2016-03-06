@@ -42,4 +42,5 @@ build:
     - script:
         name: go test
         code: |
+          go get -u gopkg.in/check.v1
           go test ./...

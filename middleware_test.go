@@ -110,7 +110,8 @@ func (s *MiddlewareSuite) TestTimeout(c *C) {
 
 func (s *MiddlewareSuite) TestTimeoutSuccessful(c *C) {
 	rg := newRouteGroup(httprouter.New())
-	rg.With(Timeout(30*time.Second)).GET("/timeout", ContextHandlerFunc(func(_ context.Context, _ http.ResponseWriter, _ *http.Request) {
+	rg.With(Timeout(30*time.Second)).GET("/timeout", ContextHandlerFunc(func(_ context.Context, rw http.ResponseWriter, _ *http.Request) {
+		rw.WriteHeader(200)
 		time.Sleep(20 * time.Millisecond)
 	}))
 

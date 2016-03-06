@@ -8,7 +8,7 @@ WebApp
 =======
 
 Webapp is to simplify the setup of routing for a webapp or microservice.
-The routing is based on httprouter with additional chaining and grouping support.
+The routing is based on github.com/julienschmidt/httprouter with additional chaining and grouping support.
 
 Install
 =======
