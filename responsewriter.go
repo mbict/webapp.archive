@@ -15,32 +15,28 @@ type ResponseWriter interface {
 	Size() int
 }
 
-type beforeFunc func(ResponseWriter)
-
 // NewResponseWriter creates a ResponseWriter that wraps an http.ResponseWriter
 func newResponseWriter(rw http.ResponseWriter) ResponseWriter {
-	return &responseWriter{rw, 0, 0, nil}
+	return &responseWriter{rw, 0, 0}
 }
 
 type responseWriter struct {
 	http.ResponseWriter
-	status      int
-	size        int
-	beforeFuncs []beforeFunc
+	status int
+	size   int
 }
 
-func (rw *responseWriter) WriteHeader(s int) {
-	rw.status = s
-	rw.callBefore()
-	rw.ResponseWriter.WriteHeader(s)
+func (rw *responseWriter) WriteHeader(status int) {
+	rw.status = status
+	rw.ResponseWriter.WriteHeader(status)
 }
 
-func (rw *responseWriter) Write(b []byte) (int, error) {
+func (rw *responseWriter) Write(data []byte) (int, error) {
 	if !rw.Written() {
-		// The status will be StatusOK if WriteHeader has not been called yet
+		// If the status is not set we make sure the response is a 200
 		rw.WriteHeader(http.StatusOK)
 	}
-	size, err := rw.ResponseWriter.Write(b)
+	size, err := rw.ResponseWriter.Write(data)
 	rw.size += size
 	return size, err
 }
@@ -57,10 +53,6 @@ func (rw *responseWriter) Written() bool {
 	return rw.status != 0
 }
 
-func (rw *responseWriter) Before(before func(ResponseWriter)) {
-	rw.beforeFuncs = append(rw.beforeFuncs, before)
-}
-
 func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	hijacker, ok := rw.ResponseWriter.(http.Hijacker)
 	if !ok {
@@ -71,12 +63,6 @@ func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 
 func (rw *responseWriter) CloseNotify() <-chan bool {
 	return rw.ResponseWriter.(http.CloseNotifier).CloseNotify()
-}
-
-func (rw *responseWriter) callBefore() {
-	for i := len(rw.beforeFuncs) - 1; i >= 0; i-- {
-		rw.beforeFuncs[i](rw)
-	}
 }
 
 func (rw *responseWriter) Flush() {

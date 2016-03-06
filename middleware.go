@@ -5,8 +5,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"io"
+	"golang.org/x/net/context"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"runtime"
 	"strings"
@@ -17,7 +18,11 @@ import (
 type middlewareKey int
 
 // ReqIDKey is the RequestID middleware key used to store the request ID value in the context.
-const RequestIDKey middlewareKey = 0
+const (
+	requestIDKey middlewareKey = iota
+	errorKey
+	stackTraceKey
+)
 
 // RequestIDHeader is the name of the header used to transmit the request ID.
 const RequestIDHeader = "X-Request-Id"
@@ -41,84 +46,107 @@ func init() {
 	reqPrefix = string(b64[0:10])
 }
 
-//func NewMiddleware(m interface{}) (mw Middleware, err error) {
-//	switch m := m.(type) {
-//	case Middleware:
-//		mw = m
-//	case func(Handler) Handler:
-//		mw = m
-//	case Handler:
-//		mw = handlerToMiddleware(m)
-//	case func(*Context) error:
-//		mw = handlerToMiddleware(m)
-//	case func(http.Handler) http.Handler:
-//		mw = func(h Handler) Handler {
-//			return func(ctx *Context) (err error) {
-//				rw := ctx.Value(respKey).(http.ResponseWriter)
-//				m(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//					err = h(ctx)
-//				})).ServeHTTP(rw, ctx.Request())
-//				return
-//			}
-//		}
-//	case http.Handler:
-//		mw = httpHandlerToMiddleware(m.ServeHTTP)
-//	case func(http.ResponseWriter, *http.Request):
-//		mw = httpHandlerToMiddleware(m)
-//	default:
-//		err = fmt.Errorf("invalid middleware %#v", m)
-//	}
-//	return
-//}
-
 // RequestID is a middleware that injects a request ID into the context of each request.
-// Retrieve it using ctx.Value(ReqIDKey). If the incoming request has a RequestIDHeader header then
+// Retrieve it using RequestID(ctx). If the incoming request has a RequestIDHeader header then
 // that value is used else a random value is generated.
-func RequestID() HandlerFunc {
-	return func(ctx *Context) {
-		id := ctx.Header().Get(RequestIDHeader)
-		if id == "" {
-			id = fmt.Sprintf("%s-%d", reqPrefix, atomic.AddInt64(&reqID, 1))
-		}
-		ctx.Set(RequestIDKey, id)
+func UniqueRequestID() Middleware {
+	return func(next ContextHandler) ContextHandler {
+		return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+			id := req.Header.Get(RequestIDHeader)
+			if id == "" {
+				id = fmt.Sprintf("%s-%d", reqPrefix, atomic.AddInt64(&reqID, 1))
+			}
+
+			ctx = context.WithValue(ctx, requestIDKey, id)
+
+			next.ServeHTTPContext(ctx, rw, req)
+		})
 	}
+}
+
+// RequestID retreives the request id from the context
+func RequestID(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+
+	if id, ok := ctx.Value(requestIDKey).(string); ok {
+		return id
+	}
+
+	return ""
 }
 
 // Timeout limits a request handler to run for max time of the duration
 // Timeout( 15 * time.Second ) will limit the request to run no longer tan 15 seconds
 // When the request times out, the request will send a 503 response
-func Timeout(duration time.Duration) HandlerFunc {
-	return func(ctx *Context) {
-		h := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-			ctx.Next()
-		})
+func Timeout(duration time.Duration) Middleware {
+	return func(next ContextHandler) ContextHandler {
+		return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 
-		http.TimeoutHandler(h, duration, "Server request timeout").ServeHTTP(ctx.Response(), ctx.Request())
+			h := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+				next.ServeHTTPContext(ctx, rw, req)
+			})
+
+			http.TimeoutHandler(h, duration, "Server request timeout").ServeHTTP(rw, req)
+		})
 	}
 }
 
 // Recovery returns a middleware that recovers from any panics and writes a 500 if there was one.
-func Recovery(handler HandlerFunc) HandlerFunc {
-	return func(ctx *Context) {
-		defer func() {
-			if err := recover(); err != nil {
-				//abort context
-				ctx.Abort()
+func Recovery(errorHandler ContextHandlerFunc) Middleware {
+	return func(next ContextHandler) ContextHandler {
+		return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+			defer func() {
+				if err := recover(); err != nil {
+					stackTrace := stack(3)
 
-				stackTrace := stack(3)
-				formattedError := fmt.Errorf("%s\nStack trace:\n%s", err, stackTrace)
-				ctx.Errors().Add(formattedError)
+					ctx = context.WithValue(ctx, errorKey, fmt.Errorf("%s", err))
+					ctx = context.WithValue(ctx, stackTraceKey, stackTrace)
 
-				if handler != nil {
-					handler(ctx)
+					if errorHandler != nil {
+						errorHandler(ctx, rw, req)
+					} else {
+						rw.WriteHeader(http.StatusInternalServerError)
+						rw.Write([]byte("Internal server error"))
+					}
 				}
-				if !ctx.ResponseWritten() {
-					ctx.Respond(http.StatusInternalServerError, []byte("Internal server error"))
-				}
-			}
-		}()
-		ctx.Next()
+			}()
+			next.ServeHTTPContext(ctx, rw, req)
+		})
 	}
+}
+
+// ErrorStackTrace retrieves the stack trace from the context
+// if a panic occurs and is handled by the recovery middleware
+// a stack trace is stored in the context
+//
+func ErrorStackTrace(ctx context.Context) []byte {
+	if ctx == nil {
+		return nil
+	}
+
+	if id, ok := ctx.Value(stackTraceKey).([]byte); ok {
+		return id
+	}
+
+	return nil
+}
+
+// Error retrieves the error from the context
+// if a panic occurs and is handled by the recovery middleware
+// the error from recovery is stored in the context
+// if none is present this function will return a nil pointer
+func Error(ctx context.Context) error {
+	if ctx == nil {
+		return nil
+	}
+
+	if id, ok := ctx.Value(errorKey).(error); ok {
+		return id
+	}
+
+	return nil
 }
 
 var (
@@ -201,12 +229,12 @@ var (
 )
 
 // LogRequest creates a request logger middleware.
-//
-func LogRequest(out io.Writer) HandlerFunc {
-	return func(ctx *Context) {
-		/*
-			return func(ctx *Context) error {
-				reqID := ctx.Value(ReqIDKey)
+func LogRequest(logger *log.Logger) Middleware {
+	return func(next ContextHandler) ContextHandler {
+		return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+
+			/*
+				reqID := ctx.Value(reqIDKey)
 				if reqID == nil {
 					reqID = shortID()
 				}
@@ -238,36 +266,45 @@ func LogRequest(out io.Writer) HandlerFunc {
 						ctx.Debug("payload", "raw", payload)
 					}
 				}
-				err := h(ctx)
+
+				next(ctx,rw,req)
+
 				ctx.Info("completed", "status", ctx.ResponseStatus(),
 					"bytes", ctx.ResponseLength(), "time", time.Since(startedAt).String())
-				return err
-			}
-		*/
+			*/
 
-		// Start timer
-		start := time.Now()
+			/*
+				cn := rw.(http.CloseNotifier).CloseNotify()
+				go func() {
+					<-cn
+					fmt.Println("HTTP connection just closed.")
+				}()
+			*/
 
-		ctx.Next()
+			// Start timer
+			start := time.Now()
 
-		// Stop timer
-		end := time.Now()
-		latency := end.Sub(start)
+			//call the next handler
+			next.ServeHTTPContext(ctx, rw, req)
 
-		method := ctx.Method()
-		statusCode := ctx.ResponseStatus()
-		statusColor := colorForStatus(statusCode)
-		methodColor := colorForMethod(method)
+			// Stop timer
+			end := time.Now()
+			latency := end.Sub(start)
 
-		fmt.Fprintf(out, "[LOG] %v |%s %3d %s| %12v | %21s |%s %7s %s %s\n%s",
-			end.Format("2006/01/02 - 15:04:05"),
-			statusColor, statusCode, reset,
-			latency,
-			ctx.ClientIP(),
-			methodColor, method, reset,
-			ctx.Request().URL.Path,
-			ctx.Errors().String(),
-		)
+			method := req.Method
+			statusCode := rw.(ResponseWriter).Status()
+			statusColor := colorForStatus(statusCode)
+			methodColor := colorForMethod(method)
+
+			logger.Printf("%v |%s %3d %s| %12v | %21s |%s %7s %s %s",
+				end.Format("2006/01/02 - 15:04:05"),
+				statusColor, statusCode, reset,
+				latency,
+				req.RemoteAddr,
+				methodColor, method, reset,
+				req.URL.Path,
+			)
+		})
 	}
 }
 
@@ -299,8 +336,6 @@ func colorForMethod(method string) string {
 	case method == "HEAD":
 		return magenta
 	case method == "OPTIONS":
-		return white
-	case method == "CONNECT":
 		return white
 	default:
 		return reset
