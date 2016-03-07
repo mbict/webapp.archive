@@ -41,18 +41,6 @@ func (c Chain) Then(h ContextHandler) ContextHandler {
 	return h
 }
 
-// ThenFunc works identically to Then, but takes
-// a ContextHandlerFunc instead of a Handler.
-//
-// The following two statements are equivalent:
-//     c.Then(webapp.ContextHandlerFunc(fn))
-//     c.ThenFunc(fn)
-//
-// ThenFunc provides all the guarantees of Then.
-func (c Chain) ThenFunc(fn ContextHandlerFunc) ContextHandler {
-	return c.Then(ContextHandlerFunc(fn))
-}
-
 // Append extends a chain, adding the specified handlers
 // as the last ones in the request flow.
 //
@@ -104,45 +92,37 @@ func WrapMiddleware(i interface{}) Middleware {
 	case func(ContextHandler) ContextHandler:
 		return h
 
-	case ContextHandler:
-		return func(next ContextHandler) ContextHandler {
-			return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
-				h.ServeHTTPContext(ctx, rw, req)
-				next.ServeHTTPContext(ctx, rw, req)
-			})
-		}
-
 	case func(ctx context.Context, rw http.ResponseWriter, req *http.Request):
 		return func(next ContextHandler) ContextHandler {
-			return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+			return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 				h(ctx, rw, req)
-				next.ServeHTTPContext(ctx, rw, req)
-			})
+				next(ctx, rw, req)
+			}
 		}
 
 	case func(http.Handler) http.Handler:
 		hf := h(nil)
 		return func(next ContextHandler) ContextHandler {
-			return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+			return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 				hf.ServeHTTP(rw, req)
-				next.ServeHTTPContext(ctx, rw, req)
-			})
+				next(ctx, rw, req)
+			}
 		}
 
 	case http.Handler:
 		return func(next ContextHandler) ContextHandler {
-			return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+			return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 				h.ServeHTTP(rw, req)
-				next.ServeHTTPContext(ctx, rw, req)
-			})
+				next(ctx, rw, req)
+			}
 		}
 
 	case func(http.ResponseWriter, *http.Request):
 		return func(next ContextHandler) ContextHandler {
-			return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+			return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 				h(rw, req)
-				next.ServeHTTPContext(ctx, rw, req)
-			})
+				next(ctx, rw, req)
+			}
 		}
 	}
 

@@ -8,13 +8,4 @@ import (
 	"net/http"
 )
 
-// ContextHandler is a net/context aware http.Handler
-type ContextHandler interface {
-	ServeHTTPContext(context.Context, http.ResponseWriter, *http.Request)
-}
-
-type ContextHandlerFunc func(context.Context, http.ResponseWriter, *http.Request)
-
-func (h ContextHandlerFunc) ServeHTTPContext(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
-	h(ctx, rw, req)
-}
+type ContextHandler func(context.Context, http.ResponseWriter, *http.Request)

@@ -151,7 +151,7 @@ func (group *routeGroup) Handle(httpMethod, relativePath string, handler Context
 	group.router.Handle(httpMethod, absolutePath, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		ctx := newContextWithParams(context.Background(), params)
 		rw = newResponseWriter(rw)
-		handler.ServeHTTPContext(ctx, rw, req)
+		handler(ctx, rw, req)
 	})
 }
 
@@ -175,7 +175,7 @@ func (group *routeGroup) Static(relativePath, root string) {
 	group.HEAD(relativePath, handler)
 }
 
-func createStaticHandler(absolutePath, root string) ContextHandlerFunc {
+func createStaticHandler(absolutePath, root string) ContextHandler {
 	fileServer := http.StripPrefix(absolutePath, http.FileServer(http.Dir(root)))
 	return func(_ context.Context, rw http.ResponseWriter, req *http.Request) {
 		fileServer.ServeHTTP(rw, req)
@@ -189,7 +189,7 @@ func (group *routeGroup) StaticFile(relativePath, file string) {
 	group.HEAD(relativePath, handler)
 }
 
-func createStaticFileHandler(file string) ContextHandlerFunc {
+func createStaticFileHandler(file string) ContextHandler {
 	return func(_ context.Context, rw http.ResponseWriter, req *http.Request) {
 		http.ServeFile(rw, req, file)
 	}

@@ -51,7 +51,7 @@ func init() {
 // that value is used else a random value is generated.
 func UniqueRequestID() Middleware {
 	return func(next ContextHandler) ContextHandler {
-		return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+		return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 			id := req.Header.Get(RequestIDHeader)
 			if id == "" {
 				id = fmt.Sprintf("%s-%d", reqPrefix, atomic.AddInt64(&reqID, 1))
@@ -59,8 +59,8 @@ func UniqueRequestID() Middleware {
 
 			ctx = context.WithValue(ctx, requestIDKey, id)
 
-			next.ServeHTTPContext(ctx, rw, req)
-		})
+			next(ctx, rw, req)
+		}
 	}
 }
 
@@ -82,21 +82,21 @@ func RequestID(ctx context.Context) string {
 // When the request times out, the request will send a 503 response
 func Timeout(duration time.Duration) Middleware {
 	return func(next ContextHandler) ContextHandler {
-		return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+		return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 
 			h := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-				next.ServeHTTPContext(ctx, rw, req)
+				next(ctx, rw, req)
 			})
 
 			http.TimeoutHandler(h, duration, "Server request timeout").ServeHTTP(rw, req)
-		})
+		}
 	}
 }
 
 // Recovery returns a middleware that recovers from any panics and writes a 500 if there was one.
-func Recovery(errorHandler ContextHandlerFunc) Middleware {
+func Recovery(errorHandler ContextHandler) Middleware {
 	return func(next ContextHandler) ContextHandler {
-		return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+		return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 			defer func() {
 				if err := recover(); err != nil {
 					stackTrace := stack(3)
@@ -112,8 +112,8 @@ func Recovery(errorHandler ContextHandlerFunc) Middleware {
 					}
 				}
 			}()
-			next.ServeHTTPContext(ctx, rw, req)
-		})
+			next(ctx, rw, req)
+		}
 	}
 }
 
@@ -231,61 +231,12 @@ var (
 // LogRequest creates a request logger middleware.
 func LogRequest(logger *log.Logger) Middleware {
 	return func(next ContextHandler) ContextHandler {
-		return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
-
-			/*
-				reqID := ctx.Value(reqIDKey)
-				if reqID == nil {
-					reqID = shortID()
-				}
-				ctx.Logger = ctx.Logger.New("id", reqID)
-				startedAt := time.Now()
-				r := ctx.Value(reqKey).(*http.Request)
-				ctx.Info("started", r.Method, r.URL.String())
-				params := ctx.Value(paramKey).(map[string]string)
-				if len(params) > 0 {
-					logCtx := make(log.Ctx, len(params))
-					for k, v := range params {
-						logCtx[k] = interface{}(v)
-					}
-					ctx.Debug("params", logCtx)
-				}
-				query := ctx.Value(queryKey).(map[string][]string)
-				if len(query) > 0 {
-					logCtx := make(log.Ctx, len(query))
-					for k, v := range query {
-						logCtx[k] = interface{}(v)
-					}
-					ctx.Debug("query", logCtx)
-				}
-				payload := ctx.Value(payloadKey)
-				if r.ContentLength > 0 {
-					if mp, ok := payload.(map[string]interface{}); ok {
-						ctx.Debug("payload", log.Ctx(mp))
-					} else {
-						ctx.Debug("payload", "raw", payload)
-					}
-				}
-
-				next(ctx,rw,req)
-
-				ctx.Info("completed", "status", ctx.ResponseStatus(),
-					"bytes", ctx.ResponseLength(), "time", time.Since(startedAt).String())
-			*/
-
-			/*
-				cn := rw.(http.CloseNotifier).CloseNotify()
-				go func() {
-					<-cn
-					fmt.Println("HTTP connection just closed.")
-				}()
-			*/
-
+		return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 			// Start timer
 			start := time.Now()
 
 			//call the next handler
-			next.ServeHTTPContext(ctx, rw, req)
+			next(ctx, rw, req)
 
 			// Stop timer
 			end := time.Now()
@@ -304,7 +255,7 @@ func LogRequest(logger *log.Logger) Middleware {
 				methodColor, method, reset,
 				req.URL.Path,
 			)
-		})
+		}
 	}
 }
 

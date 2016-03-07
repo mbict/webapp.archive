@@ -12,10 +12,10 @@ var _ = Suite(&WebAppSuite{})
 
 func (s *WebAppSuite) TestNotFound(c *C) {
 	app := New()
-	app.NotFound(ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+	app.NotFound(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusNotFound)
 		rw.Write([]byte("Not found"))
-	}))
+	})
 
 	response := doTestRequest(app, "GET", "/not/found/path")
 
@@ -30,10 +30,10 @@ func (s *WebAppSuite) TestNotFoundWithGlobalMiddlewareHandlerIsSet(c *C) {
 		called = true
 		return next
 	})
-	app.NotFound(ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+	app.NotFound(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusNotFound)
 		rw.Write([]byte("Not found"))
-	}))
+	})
 
 	response := doTestRequest(app, "GET", "/not/found/path")
 
@@ -44,10 +44,10 @@ func (s *WebAppSuite) TestNotFoundWithGlobalMiddlewareHandlerIsSet(c *C) {
 
 func (s *WebAppSuite) TestNotFoundWithGlobalMiddlewareAfterHandlerIsSet(c *C) {
 	app := New()
-	app.NotFound(ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+	app.NotFound(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusNotFound)
 		rw.Write([]byte("Not found"))
-	}))
+	})
 	called := false
 	app.Use(func(next ContextHandler) ContextHandler {
 		called = true
@@ -63,7 +63,7 @@ func (s *WebAppSuite) TestNotFoundWithGlobalMiddlewareAfterHandlerIsSet(c *C) {
 
 func (s *WebAppSuite) TestNotAllowed(c *C) {
 	app := New()
-	app.GET("/test", ContextHandlerFunc(finalHandler))
+	app.GET("/test", finalHandler)
 
 	response := doTestRequest(app, "POST", "/test")
 
@@ -73,11 +73,11 @@ func (s *WebAppSuite) TestNotAllowed(c *C) {
 
 func (s *WebAppSuite) TestNotAllowedCustomFunction(c *C) {
 	app := New()
-	app.GET("/test", ContextHandlerFunc(finalHandler))
-	app.MethodNotAllowed(ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+	app.GET("/test", finalHandler)
+	app.MethodNotAllowed(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusMethodNotAllowed)
 		rw.Write([]byte("Method no no allowed"))
-	}))
+	})
 
 	response := doTestRequest(app, "POST", "/test")
 
@@ -92,11 +92,11 @@ func (s *WebAppSuite) TestNotAllowedWithGlobalMiddlewareBeforeHandlerIsSet(c *C)
 		called = true
 		return next
 	})
-	app.GET("/test", ContextHandlerFunc(finalHandler))
-	app.MethodNotAllowed(ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+	app.GET("/test", finalHandler)
+	app.MethodNotAllowed(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusMethodNotAllowed)
 		rw.Write([]byte("Method no no allowed"))
-	}))
+	})
 
 	response := doTestRequest(app, "POST", "/test")
 
@@ -107,11 +107,11 @@ func (s *WebAppSuite) TestNotAllowedWithGlobalMiddlewareBeforeHandlerIsSet(c *C)
 
 func (s *WebAppSuite) TestNotAllowedWithGlobalMiddlewareAfterHandlerIsSet(c *C) {
 	app := New()
-	app.GET("/test", ContextHandlerFunc(finalHandler))
-	app.MethodNotAllowed(ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+	app.GET("/test", finalHandler)
+	app.MethodNotAllowed(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusMethodNotAllowed)
 		rw.Write([]byte("Method no no allowed"))
-	}))
+	})
 	called := false
 	app.Use(func(next ContextHandler) ContextHandler {
 		called = true
@@ -127,7 +127,7 @@ func (s *WebAppSuite) TestNotAllowedWithGlobalMiddlewareAfterHandlerIsSet(c *C) 
 
 func (s *WebAppSuite) TestNotFoundIsTriggerdWhenNotAllowedIsSetToNil(c *C) {
 	app := New()
-	app.GET("/test", ContextHandlerFunc(finalHandler))
+	app.GET("/test", finalHandler)
 	app.MethodNotAllowed(nil)
 
 	response := doTestRequest(app, "POST", "/test")
@@ -138,7 +138,7 @@ func (s *WebAppSuite) TestNotFoundIsTriggerdWhenNotAllowedIsSetToNil(c *C) {
 func (s *WebAppSuite) TestHandleOptions(c *C) {
 	app := New()
 	app.HandleOptions(true)
-	app.With(middlewareWriter("m1")).GET("/test", ContextHandlerFunc(finalHandler))
+	app.With(middlewareWriter("m1")).GET("/test", finalHandler)
 
 	response := doTestRequest(app, "OPTIONS", "/test")
 
@@ -149,7 +149,7 @@ func (s *WebAppSuite) TestHandleOptions(c *C) {
 func (s *WebAppSuite) TestNotHandleOptions(c *C) {
 	app := New()
 	app.HandleOptions(false)
-	app.POST("/test", ContextHandlerFunc(finalHandler))
+	app.POST("/test", finalHandler)
 
 	response := doTestRequest(app, "OPTIONS", "/test")
 
@@ -158,7 +158,7 @@ func (s *WebAppSuite) TestNotHandleOptions(c *C) {
 
 func (s *WebAppSuite) TestRedirectTrailingSlash(c *C) {
 	app := New()
-	app.GET("/test", ContextHandlerFunc(finalHandler))
+	app.GET("/test", finalHandler)
 
 	app.RedirectTrailingSlash(true)
 	response := doTestRequest(app, "GET", "/test/")
@@ -169,7 +169,7 @@ func (s *WebAppSuite) TestRedirectTrailingSlash(c *C) {
 
 func (s *WebAppSuite) TestRedirectTrailingSlashFalse(c *C) {
 	app := New()
-	app.GET("/test", ContextHandlerFunc(finalHandler))
+	app.GET("/test", finalHandler)
 
 	app.RedirectTrailingSlash(false)
 	response := doTestRequest(app, "GET", "/test/")
@@ -179,7 +179,7 @@ func (s *WebAppSuite) TestRedirectTrailingSlashFalse(c *C) {
 
 func (s *WebAppSuite) TestRedirectFixedPath(c *C) {
 	app := New()
-	app.GET("/test", ContextHandlerFunc(finalHandler))
+	app.GET("/test", finalHandler)
 
 	app.RedirectFixedPath(true)
 	response := doTestRequest(app, "GET", "/abc/../test")
@@ -190,7 +190,7 @@ func (s *WebAppSuite) TestRedirectFixedPath(c *C) {
 
 func (s *WebAppSuite) TestRedirectFixedPathFalse(c *C) {
 	app := New()
-	app.GET("/test", ContextHandlerFunc(finalHandler))
+	app.GET("/test", finalHandler)
 
 	app.RedirectFixedPath(false)
 	response := doTestRequest(app, "GET", "/abc/../test")

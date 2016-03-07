@@ -26,9 +26,9 @@ func (s *ChainSuite) TestNewEmptyChainLength(c *C) {
 func (s *ChainSuite) TestChainExecutionOrderFIFO(c *C) {
 	rw := httptest.NewRecorder()
 	chain := NewChain(middlewareWriter("1"), middlewareWriter("2"))
-	h := chain.ThenFunc(finalHandler)
+	h := chain.Then(finalHandler)
 
-	h.ServeHTTPContext(context.Background(), rw, (*http.Request)(nil))
+	h(context.Background(), rw, (*http.Request)(nil))
 
 	c.Assert(rw.Body.String(), Equals, "12H")
 }
@@ -36,9 +36,9 @@ func (s *ChainSuite) TestChainExecutionOrderFIFO(c *C) {
 func (s *ChainSuite) TestEmptyChain(c *C) {
 	rw := httptest.NewRecorder()
 	chain := NewChain()
-	h := chain.ThenFunc(finalHandler)
+	h := chain.Then(finalHandler)
 
-	h.ServeHTTPContext(context.Background(), rw, (*http.Request)(nil))
+	h(context.Background(), rw, (*http.Request)(nil))
 
 	c.Assert(rw.Body.String(), Equals, "H")
 }
@@ -46,9 +46,9 @@ func (s *ChainSuite) TestEmptyChain(c *C) {
 func (s *ChainSuite) TestMiddlewareAborts(c *C) {
 	rw := httptest.NewRecorder()
 	chain := NewChain(middlewareWriter("1"), middlewareAbort())
-	h := chain.ThenFunc(finalHandler)
+	h := chain.Then(finalHandler)
 
-	h.ServeHTTPContext(context.Background(), rw, (*http.Request)(nil))
+	h(context.Background(), rw, (*http.Request)(nil))
 
 	c.Assert(rw.Body.String(), Equals, "1abort")
 }
@@ -58,7 +58,7 @@ func (s *ChainSuite) TestAppend(c *C) {
 	chain2 := chain1.Append(middlewareWriter("2"))
 
 	rw := httptest.NewRecorder()
-	chain2.ThenFunc(finalHandler).ServeHTTPContext(context.Background(), rw, (*http.Request)(nil))
+	chain2.Then(finalHandler)(context.Background(), rw, (*http.Request)(nil))
 	c.Assert(rw.Body.String(), Equals, "12H")
 }
 
@@ -72,13 +72,13 @@ func (s *ChainSuite) TestAppendRespectsImmutableChain(c *C) {
 	c.Assert(chain1, Not(DeepEquals), chain2)
 }
 
-func (s *ChainSuite) TesExtend(c *C) {
+func (s *ChainSuite) TestExtend(c *C) {
 	chain1 := NewChain(middlewareWriter("1"), middlewareWriter("2"))
 	chain2 := NewChain(middlewareWriter("3"), middlewareWriter("4"))
 	chainExtend := chain1.Extend(chain2)
 
 	rw := httptest.NewRecorder()
-	chainExtend.ThenFunc(finalHandler).ServeHTTPContext(context.Background(), rw, (*http.Request)(nil))
+	chainExtend.Then(finalHandler)(context.Background(), rw, (*http.Request)(nil))
 
 	c.Assert(rw.Body.String(), Equals, "1234H")
 }
@@ -102,11 +102,6 @@ func (s *ChainSuite) TestWrapMiddlewareHTTP(c *C) {
 		description string
 		result      string
 	}{
-
-		//case func(ContextHandler) ContextHandler:
-		//case ContextHandler:
-		//case func(http.Handler) http.Handler:
-
 		{
 			handler: http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 				rw.Write([]byte("M"))
@@ -128,12 +123,6 @@ func (s *ChainSuite) TestWrapMiddlewareHTTP(c *C) {
 			description: "httpMiddleware : func(http.Handler) http.Handler",
 			result:      "1M2H",
 		}, {
-			handler: ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
-				rw.Write([]byte("M"))
-			}),
-			description: "ContextHandler",
-			result:      "1M2H",
-		}, {
 			handler: func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 				rw.Write([]byte("M"))
 			},
@@ -141,18 +130,18 @@ func (s *ChainSuite) TestWrapMiddlewareHTTP(c *C) {
 			result:      "1M2H",
 		}, {
 			handler: func(ContextHandler) ContextHandler {
-				return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+				return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 					rw.Write([]byte("M"))
-				})
+				}
 			},
 			description: "Middleware / (stops execution of handler on the middleware)",
 			result:      "1M",
 		}, {
 			handler: func(next ContextHandler) ContextHandler {
-				return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+				return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 					rw.Write([]byte("M"))
-					next.ServeHTTPContext(ctx, rw, req)
-				})
+					next(ctx, rw, req)
+				}
 			},
 			description: "Middleware",
 			result:      "1M2H",
@@ -167,8 +156,8 @@ func (s *ChainSuite) TestWrapMiddlewareHTTP(c *C) {
 		}
 
 		rw := httptest.NewRecorder()
-		h := NewChain(middlewareWriter("1"), m, middlewareWriter("2")).ThenFunc(finalHandler)
-		h.ServeHTTPContext(nil, rw, (*http.Request)(nil))
+		h := NewChain(middlewareWriter("1"), m, middlewareWriter("2")).Then(finalHandler)
+		h(nil, rw, (*http.Request)(nil))
 
 		c.Check(rw.Body.String(), Equals, t.result, Commentf("wrapping of `%s` failed", t.description))
 	}

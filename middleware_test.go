@@ -28,7 +28,7 @@ func panickingHandler(ctx context.Context, rw http.ResponseWriter, req *http.Req
 
 func (s *MiddlewareSuite) TestRecovery(c *C) {
 	rg := newRouteGroup(httprouter.New())
-	rg.With(Recovery(nil)).GET("/panic/test", ContextHandlerFunc(panickingHandler))
+	rg.With(Recovery(nil)).GET("/panic/test", panickingHandler)
 
 	response := doTestRequest(rg, "GET", "/panic/test")
 
@@ -47,7 +47,7 @@ func (s *MiddlewareSuite) TestRecoveryWithHandler(c *C) {
 		rw.Write([]byte("recovery handler"))
 	}
 	rg := newRouteGroup(httprouter.New())
-	rg.With(Recovery(recoveryHandler)).GET("/panic/test", ContextHandlerFunc(panickingHandler))
+	rg.With(Recovery(recoveryHandler)).GET("/panic/test", panickingHandler)
 
 	response := doTestRequest(rg, "GET", "/panic/test")
 
@@ -98,9 +98,9 @@ func (s *MiddlewareSuite) TestErrorStackTraceOnInCompatibleContextValue(c *C) {
 
 func (s *MiddlewareSuite) TestTimeout(c *C) {
 	rg := newRouteGroup(httprouter.New())
-	rg.With(Timeout(5*time.Millisecond)).GET("/timeout", ContextHandlerFunc(func(_ context.Context, _ http.ResponseWriter, _ *http.Request) {
+	rg.With(Timeout(5*time.Millisecond)).GET("/timeout", func(_ context.Context, _ http.ResponseWriter, _ *http.Request) {
 		time.Sleep(20 * time.Millisecond)
-	}))
+	})
 
 	response := doTestRequest(rg, "GET", "/timeout")
 
@@ -110,10 +110,10 @@ func (s *MiddlewareSuite) TestTimeout(c *C) {
 
 func (s *MiddlewareSuite) TestTimeoutSuccessful(c *C) {
 	rg := newRouteGroup(httprouter.New())
-	rg.With(Timeout(30*time.Second)).GET("/timeout", ContextHandlerFunc(func(_ context.Context, rw http.ResponseWriter, _ *http.Request) {
+	rg.With(Timeout(30*time.Second)).GET("/timeout", func(_ context.Context, rw http.ResponseWriter, _ *http.Request) {
 		rw.WriteHeader(200)
 		time.Sleep(20 * time.Millisecond)
-	}))
+	})
 
 	response := doTestRequest(rg, "GET", "/timeout")
 
@@ -126,9 +126,9 @@ func (s *MiddlewareSuite) TestTimeoutSuccessful(c *C) {
 func (s *MiddlewareSuite) TestUniqueRequestID(c *C) {
 	requestId := ""
 	rg := newRouteGroup(httprouter.New())
-	rg.With(UniqueRequestID()).GET("/test", ContextHandlerFunc(func(ctx context.Context, _ http.ResponseWriter, _ *http.Request) {
+	rg.With(UniqueRequestID()).GET("/test", func(ctx context.Context, _ http.ResponseWriter, _ *http.Request) {
 		requestId = RequestID(ctx)
-	}))
+	})
 	rgpat := regexp.MustCompile("^[^-]+-\\d+$")
 
 	doTestRequest(rg, "GET", "/test")
@@ -139,9 +139,9 @@ func (s *MiddlewareSuite) TestUniqueRequestID(c *C) {
 func (s *MiddlewareSuite) TestUniqueRequestIDWithHeader(c *C) {
 	requestId := ""
 	rg := newRouteGroup(httprouter.New())
-	rg.With(UniqueRequestID()).GET("/test", ContextHandlerFunc(func(ctx context.Context, _ http.ResponseWriter, _ *http.Request) {
+	rg.With(UniqueRequestID()).GET("/test", func(ctx context.Context, _ http.ResponseWriter, _ *http.Request) {
 		requestId = RequestID(ctx)
-	}))
+	})
 	rw := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/test", nil)
 	req.Header.Add(RequestIDHeader, "test-12345")
@@ -234,14 +234,13 @@ func (s *MiddlewareSuite) TestLogRequest(c *C) {
 		},
 	}
 
-	h := ContextHandlerFunc(finalHandler)
-	iseh := ContextHandlerFunc(func(_ context.Context, _ http.ResponseWriter, _ *http.Request) {
+	iseh := func(_ context.Context, _ http.ResponseWriter, _ *http.Request) {
 		panic("panda ikes")
-	})
-	rh := ContextHandlerFunc(func(_ context.Context, rw http.ResponseWriter, _ *http.Request) {
+	}
+	rh := func(_ context.Context, rw http.ResponseWriter, _ *http.Request) {
 		rw.Header().Set("location", "/test")
 		rw.WriteHeader(http.StatusMovedPermanently)
-	})
+	}
 
 	for index, test := range tests {
 		sw := bytes.NewBuffer([]byte{})
@@ -249,17 +248,17 @@ func (s *MiddlewareSuite) TestLogRequest(c *C) {
 
 		app := New()
 		app.Use(LogRequest(logger), Recovery(nil))
-		app.GET("/test", h)
+		app.GET("/test", finalHandler)
 		app.GET("/redirectme", rh)
-		app.GET("/test/notallowed", h)
-		app.POST("/test", h)
-		app.PUT("/test", h)
-		app.DELETE("/test", h)
-		app.HEAD("/test", h)
-		app.LINK("/test", h)
-		app.PATCH("/test", h)
-		app.OPTIONS("/test", h)
-		app.UNLINK("/test", h)
+		app.GET("/test/notallowed", finalHandler)
+		app.POST("/test", finalHandler)
+		app.PUT("/test", finalHandler)
+		app.DELETE("/test", finalHandler)
+		app.HEAD("/test", finalHandler)
+		app.LINK("/test", finalHandler)
+		app.PATCH("/test", finalHandler)
+		app.OPTIONS("/test", finalHandler)
+		app.UNLINK("/test", finalHandler)
 		app.GET("/internalservererror", iseh)
 
 		pattern := fmt.Sprintf("^\\d{4}/\\d{2}/\\d{2} - \\d{2}:\\d{2}:\\d{2} \\|.* %d .*\\|\\s+\\d+(\\.\\d+)?[\\wµ]?s \\|\\s+123.123.123.123 \\|.* %s .* %s\\n$",

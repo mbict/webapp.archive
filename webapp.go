@@ -43,7 +43,7 @@ func New() App {
 
 	app.HandleOptions(true)
 	app.NotFound(nil)
-	app.MethodNotAllowed(ContextHandlerFunc(defaultMethodNotAllowedHandler))
+	app.MethodNotAllowed(defaultMethodNotAllowedHandler)
 
 	return app
 }
@@ -66,19 +66,19 @@ func (app *webapp) MethodNotAllowed(handler ContextHandler) {
 
 	methodNotAllowedHandler := app.routeGroup.middleware.Then(handler)
 	app.router.MethodNotAllowed = http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		methodNotAllowedHandler.ServeHTTPContext(context.Background(), newResponseWriter(rw), req)
+		methodNotAllowedHandler(context.Background(), newResponseWriter(rw), req)
 	})
 }
 
 func (app *webapp) NotFound(handler ContextHandler) {
 	if handler == nil {
-		handler = ContextHandlerFunc(defaultNotFoundHandler)
+		handler = defaultNotFoundHandler
 	}
 	app.notFoundHandler = handler
 
 	notFoundHandler := app.routeGroup.middleware.Then(handler)
 	app.router.NotFound = http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		notFoundHandler.ServeHTTPContext(context.Background(), newResponseWriter(rw), req)
+		notFoundHandler(context.Background(), newResponseWriter(rw), req)
 	})
 }
 

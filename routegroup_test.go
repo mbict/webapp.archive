@@ -37,7 +37,7 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.GET("/", ContextHandlerFunc(finalHandler))
+				rg.GET("/", finalHandler)
 			},
 		}, {
 			//root test
@@ -45,7 +45,7 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.GET("", ContextHandlerFunc(finalHandler))
+				rg.GET("", finalHandler)
 			},
 		}, {
 			//strange routes patterns with closing slash
@@ -53,7 +53,7 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/test/",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.Group("test").GET("/", ContextHandlerFunc(finalHandler))
+				rg.Group("test").GET("/", finalHandler)
 			},
 		}, {
 			//strange routes patterns without closing slash
@@ -61,7 +61,7 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.Group("test").GET("", ContextHandlerFunc(finalHandler))
+				rg.Group("test").GET("", finalHandler)
 			},
 		}, {
 			//root test
@@ -69,7 +69,7 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.GET("/test", ContextHandlerFunc(finalHandler))
+				rg.GET("/test", finalHandler)
 			},
 		}, {
 			//root test with middleware
@@ -77,7 +77,7 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/test",
 			response: "M1H",
 			prepare: func(rg RouteGroup) {
-				rg.With(middlewareWriter("M1")).GET("/test", ContextHandlerFunc(finalHandler))
+				rg.With(middlewareWriter("M1")).GET("/test", finalHandler)
 			},
 		}, {
 			//group test
@@ -85,7 +85,7 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/group/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.Group("/group").GET("/test", ContextHandlerFunc(finalHandler))
+				rg.Group("/group").GET("/test", finalHandler)
 			},
 		}, {
 			//group with middleware
@@ -93,35 +93,35 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/group/test",
 			response: "M1H",
 			prepare: func(rg RouteGroup) {
-				rg.Group("/group", middlewareWriter("M1")).GET("/test", ContextHandlerFunc(finalHandler))
+				rg.Group("/group", middlewareWriter("M1")).GET("/test", finalHandler)
 			},
 		}, {
 			method:   "GET",
 			path:     "/group/test",
 			response: "M1H",
 			prepare: func(rg RouteGroup) {
-				rg.With(middlewareWriter("M1")).Group("/group").GET("/test", ContextHandlerFunc(finalHandler))
+				rg.With(middlewareWriter("M1")).Group("/group").GET("/test", finalHandler)
 			},
 		}, {
 			method:   "GET",
 			path:     "/group/test",
 			response: "M1H",
 			prepare: func(rg RouteGroup) {
-				rg.Group("/group").With(middlewareWriter("M1")).GET("/test", ContextHandlerFunc(finalHandler))
+				rg.Group("/group").With(middlewareWriter("M1")).GET("/test", finalHandler)
 			},
 		}, {
 			method:   "GET",
 			path:     "/group/test",
 			response: "M1M2M3H",
 			prepare: func(rg RouteGroup) {
-				rg.With(middlewareWriter("M1")).Group("/group", middlewareWriter("M2")).With(middlewareWriter("M3")).GET("/test", ContextHandlerFunc(finalHandler))
+				rg.With(middlewareWriter("M1")).Group("/group", middlewareWriter("M2")).With(middlewareWriter("M3")).GET("/test", finalHandler)
 			},
 		}, {
 			method:   "GET",
 			path:     "/group/group2/test",
 			response: "M1M2H",
 			prepare: func(rg RouteGroup) {
-				rg.Group("/group", middlewareWriter("M1")).Group("/group2", middlewareWriter("M2")).GET("/test", ContextHandlerFunc(finalHandler))
+				rg.Group("/group", middlewareWriter("M1")).Group("/group2", middlewareWriter("M2")).GET("/test", finalHandler)
 			},
 		},
 
@@ -131,21 +131,21 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.POST("/test", ContextHandlerFunc(finalHandler))
+				rg.POST("/test", finalHandler)
 			},
 		}, {
 			method:   "POST",
 			path:     "/test",
 			response: "M1H",
 			prepare: func(rg RouteGroup) {
-				rg.With(middlewareWriter("M1")).POST("/test", ContextHandlerFunc(finalHandler))
+				rg.With(middlewareWriter("M1")).POST("/test", finalHandler)
 			},
 		}, {
 			method:   "POST",
 			path:     "/group/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.Group("/group").POST("/test", ContextHandlerFunc(finalHandler))
+				rg.Group("/group").POST("/test", finalHandler)
 			},
 		},
 
@@ -155,21 +155,21 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.PUT("/test", ContextHandlerFunc(finalHandler))
+				rg.PUT("/test", finalHandler)
 			},
 		}, {
 			method:   "PUT",
 			path:     "/test",
 			response: "M1H",
 			prepare: func(rg RouteGroup) {
-				rg.With(middlewareWriter("M1")).PUT("/test", ContextHandlerFunc(finalHandler))
+				rg.With(middlewareWriter("M1")).PUT("/test", finalHandler)
 			},
 		}, {
 			method:   "PUT",
 			path:     "/group/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.Group("/group").PUT("/test", ContextHandlerFunc(finalHandler))
+				rg.Group("/group").PUT("/test", finalHandler)
 			},
 		},
 
@@ -179,21 +179,21 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.PATCH("/test", ContextHandlerFunc(finalHandler))
+				rg.PATCH("/test", finalHandler)
 			},
 		}, {
 			method:   "PATCH",
 			path:     "/test",
 			response: "M1H",
 			prepare: func(rg RouteGroup) {
-				rg.With(middlewareWriter("M1")).PATCH("/test", ContextHandlerFunc(finalHandler))
+				rg.With(middlewareWriter("M1")).PATCH("/test", finalHandler)
 			},
 		}, {
 			method:   "PATCH",
 			path:     "/group/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.Group("/group").PATCH("/test", ContextHandlerFunc(finalHandler))
+				rg.Group("/group").PATCH("/test", finalHandler)
 			},
 		},
 
@@ -203,21 +203,21 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.DELETE("/test", ContextHandlerFunc(finalHandler))
+				rg.DELETE("/test", finalHandler)
 			},
 		}, {
 			method:   "DELETE",
 			path:     "/test",
 			response: "M1H",
 			prepare: func(rg RouteGroup) {
-				rg.With(middlewareWriter("M1")).DELETE("/test", ContextHandlerFunc(finalHandler))
+				rg.With(middlewareWriter("M1")).DELETE("/test", finalHandler)
 			},
 		}, {
 			method:   "DELETE",
 			path:     "/group/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.Group("/group").DELETE("/test", ContextHandlerFunc(finalHandler))
+				rg.Group("/group").DELETE("/test", finalHandler)
 			},
 		},
 
@@ -227,21 +227,21 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.OPTIONS("/test", ContextHandlerFunc(finalHandler))
+				rg.OPTIONS("/test", finalHandler)
 			},
 		}, {
 			method:   "OPTIONS",
 			path:     "/test",
 			response: "M1H",
 			prepare: func(rg RouteGroup) {
-				rg.With(middlewareWriter("M1")).OPTIONS("/test", ContextHandlerFunc(finalHandler))
+				rg.With(middlewareWriter("M1")).OPTIONS("/test", finalHandler)
 			},
 		}, {
 			method:   "OPTIONS",
 			path:     "/group/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.Group("/group").OPTIONS("/test", ContextHandlerFunc(finalHandler))
+				rg.Group("/group").OPTIONS("/test", finalHandler)
 			},
 		},
 
@@ -251,21 +251,21 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.HEAD("/test", ContextHandlerFunc(finalHandler))
+				rg.HEAD("/test", finalHandler)
 			},
 		}, {
 			method:   "HEAD",
 			path:     "/test",
 			response: "M1H",
 			prepare: func(rg RouteGroup) {
-				rg.With(middlewareWriter("M1")).HEAD("/test", ContextHandlerFunc(finalHandler))
+				rg.With(middlewareWriter("M1")).HEAD("/test", finalHandler)
 			},
 		}, {
 			method:   "HEAD",
 			path:     "/group/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.Group("/group").HEAD("/test", ContextHandlerFunc(finalHandler))
+				rg.Group("/group").HEAD("/test", finalHandler)
 			},
 		},
 
@@ -275,21 +275,21 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.LINK("/test", ContextHandlerFunc(finalHandler))
+				rg.LINK("/test", finalHandler)
 			},
 		}, {
 			method:   "LINK",
 			path:     "/test",
 			response: "M1H",
 			prepare: func(rg RouteGroup) {
-				rg.With(middlewareWriter("M1")).LINK("/test", ContextHandlerFunc(finalHandler))
+				rg.With(middlewareWriter("M1")).LINK("/test", finalHandler)
 			},
 		}, {
 			method:   "LINK",
 			path:     "/group/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.Group("/group").LINK("/test", ContextHandlerFunc(finalHandler))
+				rg.Group("/group").LINK("/test", finalHandler)
 			},
 		},
 
@@ -299,21 +299,21 @@ func (s *RouteGroupSuite) TestRouteGroup(c *C) {
 			path:     "/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.UNLINK("/test", ContextHandlerFunc(finalHandler))
+				rg.UNLINK("/test", finalHandler)
 			},
 		}, {
 			method:   "UNLINK",
 			path:     "/test",
 			response: "M1H",
 			prepare: func(rg RouteGroup) {
-				rg.With(middlewareWriter("M1")).UNLINK("/test", ContextHandlerFunc(finalHandler))
+				rg.With(middlewareWriter("M1")).UNLINK("/test", finalHandler)
 			},
 		}, {
 			method:   "UNLINK",
 			path:     "/group/test",
 			response: "H",
 			prepare: func(rg RouteGroup) {
-				rg.Group("/group").UNLINK("/test", ContextHandlerFunc(finalHandler))
+				rg.Group("/group").UNLINK("/test", finalHandler)
 			},
 		},
 
@@ -423,17 +423,17 @@ func (s *RouteGroupSuite) TestRouteLogger(c *C) {
 		{
 			expected: "^DELETE.*/trash.*-->.*github.com/mbict/webapp.glob.func.*\\(0 middlewares\\)\\n$",
 			prepare: func(rg RouteGroup) {
-				rg.DELETE("/trash", ContextHandlerFunc(finalHandler))
+				rg.DELETE("/trash", finalHandler)
 			},
 		}, {
 			expected: "^POST.*/test/abc.*-->.*github.com/mbict/webapp.middlewareWriter.func.*\\(1 middlewares\\)\\n$",
 			prepare: func(rg RouteGroup) {
-				rg.With(middlewareWriter("a")).POST("/test/abc", ContextHandlerFunc(finalHandler))
+				rg.With(middlewareWriter("a")).POST("/test/abc", finalHandler)
 			},
 		}, {
 			expected: "^GET.*/hi/world.*-->.*github.com/mbict/webapp.glob.func.*\\(0 middlewares\\)\\n$",
 			prepare: func(rg RouteGroup) {
-				rg.Group("/hi").GET("/world", ContextHandlerFunc(finalHandler))
+				rg.Group("/hi").GET("/world", finalHandler)
 			},
 		},
 	}

@@ -13,18 +13,18 @@ func Test(t *testing.T) {
 
 func middlewareWriter(data string) Middleware {
 	return func(next ContextHandler) ContextHandler {
-		return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+		return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 			rw.Write([]byte(data))
-			next.ServeHTTPContext(ctx, rw, req)
-		})
+			next(ctx, rw, req)
+		}
 	}
 }
 
 func middlewareAbort() Middleware {
 	return func(_ ContextHandler) ContextHandler {
-		return ContextHandlerFunc(func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
+		return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
 			rw.Write([]byte("abort"))
-		})
+		}
 	}
 }
 
