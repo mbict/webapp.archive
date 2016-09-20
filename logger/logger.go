@@ -30,8 +30,8 @@ func New(out io.Writer) webapp.HandlerFunc {
 		end := time.Now()
 		latency := end.Sub(start)
 
-		method := ctx.Request.Method
-		statusCode := ctx.Response.Status()
+		method := ctx.Method()
+		statusCode := ctx.ResponseStatus()
 		statusColor := colorForStatus(statusCode)
 		methodColor := colorForMethod(method)
 
@@ -41,8 +41,8 @@ func New(out io.Writer) webapp.HandlerFunc {
 			latency,
 			ctx.ClientIP(),
 			methodColor, method, reset,
-			ctx.Request.URL.Path,
-			ctx.Errors.String(),
+			ctx.Request().URL.Path,
+			ctx.Errors().String(),
 		)
 	}
 }
