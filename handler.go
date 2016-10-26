@@ -4,7 +4,7 @@ package webapp
 // for the routing the router from github.com/julienschmidt/httprouter is used
 
 import (
-	"golang.org/x/net/context"
+	"context"
 	"net/http"
 )
 

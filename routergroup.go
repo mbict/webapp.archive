@@ -1,8 +1,8 @@
 package webapp
 
 import (
+	"context"
 	"github.com/julienschmidt/httprouter"
-	"golang.org/x/net/context"
 	"log"
 	"net/http"
 	"path"
