@@ -2,10 +2,10 @@ package webapp
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
-	"golang.org/x/net/context"
 	. "gopkg.in/check.v1"
 	"log"
 	"net/http"

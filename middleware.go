@@ -2,10 +2,10 @@ package webapp
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"golang.org/x/net/context"
 	"io/ioutil"
 	"log"
 	"net/http"

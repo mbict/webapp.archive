@@ -1,7 +1,7 @@
 package webapp
 
 import (
-	"golang.org/x/net/context"
+	"context"
 	. "gopkg.in/check.v1"
 	"net/http"
 	"net/http/httptest"

@@ -421,17 +421,17 @@ func (s *RouteGroupSuite) TestRouteLogger(c *C) {
 		prepare  func(RouteGroup)
 	}{
 		{
-			expected: "^DELETE.*/trash.*-->.*github.com/mbict/webapp.glob.func.*\\(0 middlewares\\)\\n$",
+			expected: "^DELETE.*/trash.*-->.*github.com/mbict/webapp.glob.*func.*\\(0 middlewares\\)\\n$",
 			prepare: func(rg RouteGroup) {
 				rg.DELETE("/trash", finalHandler)
 			},
 		}, {
-			expected: "^POST.*/test/abc.*-->.*github.com/mbict/webapp.middlewareWriter.func.*\\(1 middlewares\\)\\n$",
+			expected: "^POST.*/test/abc.*-->.*github.com/mbict/webapp.middlewareWriter.*func.*\\(1 middlewares\\)\\n$",
 			prepare: func(rg RouteGroup) {
 				rg.With(middlewareWriter("a")).POST("/test/abc", finalHandler)
 			},
 		}, {
-			expected: "^GET.*/hi/world.*-->.*github.com/mbict/webapp.glob.func.*\\(0 middlewares\\)\\n$",
+			expected: "^GET.*/hi/world.*-->.*github.com/mbict/webapp.glob.*func.*\\(0 middlewares\\)\\n$",
 			prepare: func(rg RouteGroup) {
 				rg.Group("/hi").GET("/world", finalHandler)
 			},
